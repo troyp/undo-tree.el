@@ -3053,11 +3053,34 @@ Normally this is the file's name with \".\" prepended and
 A match for FILE is sought in `undo-tree-history-directory-alist'
 \(see the documentation of that variable for details\). If the
 directory for the backup doesn't exist, it is created."
-  (let* ((backup-directory-alist undo-tree-history-directory-alist)
-	 (name (make-backup-file-name-1 file)))
-    (concat (file-name-directory name) "." (file-name-nondirectory name)
-	    ".~undo-tree~")))
+  (let* ((backup-directory-alist  undo-tree-history-directory-alist)
+	 (name       (make-backup-file-name-1 file))
+         (mod-name   (concat (file-name-directory name)
+                             "."
+                             (file-name-nondirectory name)
+                             ".~undo-tree~")))
+    (if (undo-tree-file-name-too-long-p mod-name)
+        (undo-tree-left-truncate-history-save-file-name mod-name)
+      mod-name)))
 
+(defun undo-tree-file-name-too-long-p (filename)
+  "Return t if FILENAME is too long.
+
+A filename is considered too long if it exceeds 255 bytes in length."
+  (> (string-bytes (file-name-nondirectory filename)) 255))
+
+(defun undo-tree-left-truncate-history-save-file-name (filename)
+  "Shorten a history-save-file-name by left-truncating its path.
+
+The new name begins with\"._\"."
+  (let ((dir    (file-name-directory filename))
+        (nondir (file-name-nondirectory filename))
+        shortened-nondir)
+    (setq nondir (concat "._" (substring nondir 1)))
+    (while (undo-tree-file-name-too-long-p (concat dir nondir))
+      ;; remove one character from nondir after ._
+      (setq nondir (concat "._" (substring nondir 3))))
+    (concat dir nondir)))
 
 (defun undo-tree-save-history (&optional filename overwrite)
   "Store undo-tree history to file.
